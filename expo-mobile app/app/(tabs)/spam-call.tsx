@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, Alert } from 'react-native';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -9,6 +9,7 @@ import { CallSimulation } from '@/components/CallSimulation';
 import { MaterialIcons } from '@expo/vector-icons';
 import { audioService } from '@/services/audioService';
 import { API_CONFIG } from '@/config/api';
+import { Audio } from 'expo-av';
 
 export default function SpamCallScreen() {
   const [isSimulating, setIsSimulating] = useState(false);
@@ -17,6 +18,10 @@ export default function SpamCallScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [showWarning, setShowWarning] = useState(false);
   const randomNumber = generateRandomNumber();
+  const [recordedAudioId, setRecordedAudioId] = useState<number | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingComplete, setRecordingComplete] = useState(false);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
 
   useEffect(() => {
     loadDemoAudios();
@@ -43,9 +48,119 @@ export default function SpamCallScreen() {
     setIsSimulating(true);
   };
 
-  const endSimulation = () => {
+  const endSimulation = async () => {
     setIsSimulating(false);
+    
+    // Only delete if it was a user recording (not a demo)
+    if (recordedAudioId && !selectedDemo?.id) {
+      try {
+        console.log('Deleting recorded audio:', recordedAudioId);
+        
+        // Delete the recording
+        const response = await fetch(`${API_CONFIG.BASE_URL}/audio/demo/${recordedAudioId}`, {
+          method: 'DELETE',
+          headers: {
+            'accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to delete recording: ${response.status}`);
+        }
+        
+        console.log('Successfully deleted recorded audio');
+      } catch (error) {
+        console.error('Failed to delete recording:', error);
+      }
+    }
+    
+    // Reset states
     setSelectedDemo(null);
+    setRecordedAudioId(null);
+    setRecordingComplete(false);
+  };
+
+  const startRecording = async () => {
+    try {
+      const permission = await Audio.requestPermissionsAsync();
+      if (permission.status !== 'granted') {
+        Alert.alert('Permission required', 'Please grant microphone permission to record audio');
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        playThroughEarpieceAndroid: false,
+      });
+
+      const newRecording = new Audio.Recording();
+      await newRecording.prepareToRecordAsync({
+        android: {
+          extension: '.m4a',
+          outputFormat: Audio.RECORDING_OPTION_ANDROID_OUTPUT_FORMAT_MPEG_4,
+          audioEncoder: Audio.RECORDING_OPTION_ANDROID_AUDIO_ENCODER_AAC,
+          sampleRate: 44100,
+          numberOfChannels: 2,
+          bitRate: 128000,
+        },
+        ios: {
+          extension: '.m4a',
+          outputFormat: Audio.RECORDING_OPTION_IOS_OUTPUT_FORMAT_MPEG4AAC,
+          audioQuality: Audio.RECORDING_OPTION_IOS_AUDIO_QUALITY_MAX,
+          sampleRate: 44100,
+          numberOfChannels: 2,
+          bitRate: 128000,
+          linearPCMBitDepth: 16,
+          linearPCMIsBigEndian: false,
+          linearPCMIsFloat: false,
+        },
+      });
+      
+      await newRecording.startAsync();
+      setRecording(newRecording);
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      Alert.alert('Error', 'Failed to start recording');
+    }
+  };
+
+  const stopRecording = async () => {
+    if (!recording) return;
+
+    try {
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      
+      if (!uri) {
+        throw new Error('No recording URI available');
+      }
+
+      const uploadResult = await audioService.uploadRecordedAudio(uri);
+      setRecordedAudioId(uploadResult.id);
+      setRecordingComplete(true);
+    } catch (error) {
+      console.error('Error stopping recording:', error);
+      Alert.alert('Error', 'Failed to upload recording');
+    } finally {
+      setRecording(null);
+      setIsRecording(false);
+    }
+  };
+
+  const startSimulation = async () => {
+    if (recordedAudioId) {
+      // Use the same streaming endpoint as demos
+      const streamUrl = await audioService.streamDemo(recordedAudioId);
+      setSelectedDemo({
+        id: recordedAudioId,
+        audio_url: streamUrl
+      });
+    }
+    setIsSimulating(true);
   };
 
   if (isSimulating) {
@@ -77,18 +192,31 @@ export default function SpamCallScreen() {
       </ThemedView>
 
       <ThemedView style={styles.buttonContainer}>
-        <TouchableOpacity 
-          style={[styles.simulationButton, styles.recordButton]} 
-          onPress={startRecordingSimulation}
-        >
-          <MaterialIcons name="mic" size={24} color="#FF6B6B" />
-          <ThemedText style={[styles.buttonText, styles.recordText]}>
-            Record Your Own Demo
-          </ThemedText>
-          <ThemedText style={styles.buttonSubtext}>
-            Be the scammer • Practice Mode
-          </ThemedText>
-        </TouchableOpacity>
+        {!recordingComplete ? (
+          <TouchableOpacity 
+            style={[styles.simulationButton, styles.recordButton]} 
+            onPress={isRecording ? stopRecording : startRecording}
+          >
+            <MaterialIcons 
+              name={isRecording ? "stop" : "mic"} 
+              size={24} 
+              color="#FF6B6B" 
+            />
+            <ThemedText style={[styles.buttonText, styles.recordText]}>
+              {isRecording ? 'Stop Recording' : 'Start Recording'}
+            </ThemedText>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity 
+            style={styles.simulationButton} 
+            onPress={startSimulation}
+          >
+            <MaterialIcons name="phone" size={24} color="#FF6B6B" />
+            <ThemedText style={styles.buttonText}>
+              Start Simulation
+            </ThemedText>
+          </TouchableOpacity>
+        )}
 
         {demoAudios.map((demo) => (
           <TouchableOpacity 

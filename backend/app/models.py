@@ -31,6 +31,7 @@ class AudioFile(Base):
     description = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     is_demo = Column(Boolean, default=False)
+    is_temporary = Column(Boolean, default=False)
     audio_data = Column(LargeBinary)
     transcriptions = relationship("Transcription", back_populates="audio_file")
 
@@ -52,6 +53,16 @@ class SpamReport(Base):
     description = Column(String)
     reports_count = Column(Integer, default=1)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class AudioHash(Base):
+    __tablename__ = "audio_hashes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    filename = Column(String, nullable=False)
+    content_type = Column(String, nullable=False)
+    sha256_hash = Column(String, nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    matched_count = Column(Integer, default=0)
 
 # Pydantic Models for API
 class AudioCreate(BaseModel):
@@ -96,3 +107,14 @@ class DemoResponse(BaseModel):
 class SpamReportCreate(BaseModel):
     phone_number: str
     description: str
+
+class AudioHashResponse(BaseModel):
+    id: int
+    filename: str
+    content_type: str
+    sha256_hash: str
+    created_at: datetime
+    matched_count: int
+
+    class Config:
+        from_attributes = True

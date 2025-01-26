@@ -55,6 +55,13 @@
           "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone",
           "recordAudioAndroid": true
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app needs access to your photos to verify their integrity.",
+          "videosPermission": "The app needs access to your videos to verify their integrity."
+        }
       ]
     ],
     "experiments": {

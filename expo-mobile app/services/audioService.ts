@@ -1,11 +1,7 @@
 import { API_CONFIG } from '@/config/api';
 
 export const audioService = {
-  async uploadAudio(uri: string, metadata: {
-    category: string;
-    description: string;
-    duration: number;
-  }) {
+  async uploadRecordedAudio(uri: string) {
     const formData = new FormData();
     
     formData.append('file', {
@@ -14,16 +10,15 @@ export const audioService = {
       name: `recording_${Date.now()}.m4a`
     } as any);
     
-    Object.keys(metadata).forEach(key => {
-      formData.append(key, metadata[key].toString());
-    });
+    // Required fields for upload-demo endpoint
+    formData.append('title', 'User Recording');
+    formData.append('category', 'user_recording');
+    formData.append('description', 'Temporary user recording');
+    formData.append('duration', '1');
 
-    const response = await fetch(`${API_CONFIG.BASE_URL}/audio/upload`, {
+    const response = await fetch(`${API_CONFIG.BASE_URL}/audio/upload-demo`, {
       method: 'POST',
       body: formData,
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
     });
 
     if (!response.ok) {
@@ -31,6 +26,16 @@ export const audioService = {
     }
 
     return response.json();
+  },
+
+  async deleteDemoAudio(audioId: number) {
+    const response = await fetch(`${API_CONFIG.BASE_URL}/audio/demo/${audioId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to delete audio');
+    }
   },
 
   async getDemoAudios() {
@@ -128,15 +133,14 @@ export const audioService = {
     }
   },
 
-  async transcribeRealtimeDemoAudio(demoId: number): Promise<{
+  async transcribeRealtimeRecording(recordingId: number): Promise<{
     transcription: string;
   }> {
     try {
-      console.log('\n=== Starting Transcription ===');
-      console.log('(Partial results will update in place, final results on new lines)\n');
+      console.log('\n=== Starting Recording Transcription ===');
       
       const response = await fetch(
-        `${API_CONFIG.BASE_URL}/audio/realtimetranscribe/${demoId}`,
+        `${API_CONFIG.BASE_URL}/audio/realtimetranscribe-recording/${recordingId}`,
         { 
           method: 'GET',
           headers: {
@@ -224,6 +228,92 @@ export const audioService = {
       console.error('Fraud analysis error:', error);
       throw error;
     }
+  },
+
+  async uploadTempAudio(uri: string) {
+    const formData = new FormData();
+    
+    formData.append('file', {
+      uri,
+      type: 'audio/m4a',
+      name: `recording_${Date.now()}.m4a`
+    } as any);
+    
+    formData.append('category', 'temp_recording');
+    formData.append('description', 'Temporary recording for simulation');
+    formData.append('duration', '1');
+
+    const response = await fetch(`${API_CONFIG.BASE_URL}/audio/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Upload failed');
+    }
+
+    return response.json();
+  },
+
+  async deleteTempAudio(audioId: number) {
+    const response = await fetch(`${API_CONFIG.BASE_URL}/audio/temp/${audioId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to delete temporary audio');
+    }
+
+    return response.json();
+  },
+
+  async getStoredHashes(): Promise<AudioHash[]> {
+    const response = await fetch(`${API_CONFIG.BASE_URL}/audio/hashes`);
+    if (!response.ok) throw new Error('Failed to fetch hashes');
+    return response.json();
+  },
+
+  async checkAudioHash(uri: string): Promise<{
+    hash: string;
+    matches: number;
+    matched_files: Array<{
+      filename: string;
+      content_type: string;
+      created_at: string;
+      matched_count: number;
+    }>;
+  }> {
+    const formData = new FormData();
+    formData.append('file', {
+      uri,
+      type: 'audio/m4a',
+      name: `check_${Date.now()}.m4a`
+    } as any);
+
+    const response = await fetch(`${API_CONFIG.BASE_URL}/audio/check-hash`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) throw new Error('Hash check failed');
+    return response.json();
+  },
+
+  async storeAudioHash(uri: string) {
+    const formData = new FormData();
+    formData.append('file', {
+      uri,
+      type: 'audio/m4a',
+      name: `store_${Date.now()}.m4a`
+    } as any);
+
+    const response = await fetch(`${API_CONFIG.BASE_URL}/audio/store-hash`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) throw new Error('Failed to store hash');
+    return response.json();
   }
 };
 

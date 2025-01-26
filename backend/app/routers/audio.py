@@ -1,7 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Form
 from fastapi.responses import StreamingResponse, JSONResponse
 from sqlalchemy.orm import Session
-from ..models import AudioFile, AudioCreate, AudioResponse, DemoAudio, DemoCreate, DemoResponse, Transcription
+from ..models import AudioFile, AudioCreate, AudioResponse, DemoAudio, DemoCreate, DemoResponse, Transcription, AudioHash
 from ..database import get_db
 import io
 from sqlalchemy import func
@@ -25,11 +25,22 @@ from sse_starlette.sse import EventSourceResponse
 from fastapi import WebSocket, WebSocketDisconnect
 from typing import Dict
 from ..services.gemini_service import gemini_service
-
+import hashlib
 from pydantic import BaseModel
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+class AudioHashResponse(BaseModel):
+    id: int
+    filename: str
+    content_type: str
+    sha256_hash: str
+    created_at: datetime
+    matched_count: int
+
+    class Config:
+        from_attributes = True
 
 @router.post("/upload")
 async def upload_audio(
@@ -42,13 +53,16 @@ async def upload_audio(
     try:
         contents = await file.read()
         
+        is_temporary = category == 'temp_recording'
+        
         audio_file = AudioFile(
             filename=file.filename,
             content_type=file.content_type,
             category=category,
             description=description,
             duration=duration,
-            audio_data=contents
+            audio_data=contents,
+            is_temporary=is_temporary
         )
         
         db.add(audio_file)
@@ -312,6 +326,9 @@ async def realtime_demo_transcription(demo_id: int, db: Session = Depends(get_db
                 }
                 return
 
+            # Store category for later use
+            demo_category = demo.category
+            
             # Create temporary files with unique names
             temp_file_path = f"temp_{uuid.uuid4()}_{demo.filename}"
             wav_file_path = f"temp_{uuid.uuid4()}.wav"
@@ -387,8 +404,21 @@ async def realtime_demo_transcription(demo_id: int, db: Session = Depends(get_db
                         logger.info(f"Cleaned up temp file: {file_path}")
                     except Exception as e:
                         logger.warning(f"Failed to cleanup temp file: {e}")
+            
+            # Delete user recording after transcription if category is user_recording
+            try:
+                if demo and demo_category == 'user_recording':
+                    logger.info(f"Deleting user recording with ID: {demo_id}")
+                    db.delete(demo)
+                    db.commit()
+                    logger.info(f"Successfully deleted user recording: {demo_id}")
+            except Exception as e:
+                logger.error(f"Failed to delete user recording {demo_id}: {str(e)}")
+                db.rollback()
 
     return EventSourceResponse(event_generator())
+
+
 
 class TextAnalysisRequest(BaseModel):
     text: str
@@ -398,6 +428,188 @@ async def analyze_fraud(request: TextAnalysisRequest) -> Dict:
     try:
         return await gemini_service.analyze_fraud(request.text)
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/upload-temp")
+async def upload_temp_audio(
+    file: UploadFile = File(...),
+    category: str = "temp_recording",
+    description: str = "",
+    duration: int = 0,
+    db: Session = Depends(get_db)
+):
+    try:
+        contents = await file.read()
+        
+        audio_file = AudioFile(
+            filename=file.filename,
+            content_type=file.content_type,
+            category=category,
+            description=description,
+            duration=duration,
+            audio_data=contents,
+            is_temporary=True  # New field to mark temporary files
+        )
+        
+        db.add(audio_file)
+        db.commit()
+        db.refresh(audio_file)
+        
+        return {
+            "id": audio_file.id,
+            "message": "Temporary recording uploaded successfully"
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/temp/{audio_id}")
+async def delete_temp_audio(audio_id: int, db: Session = Depends(get_db)):
+    try:
+        audio = db.query(AudioFile).filter(
+            AudioFile.id == audio_id,
+            AudioFile.is_temporary == True
+        ).first()
+        
+        if not audio:
+            raise HTTPException(status_code=404, detail="Temporary audio not found")
+            
+        db.delete(audio)
+        db.commit()
+        
+        return {"message": "Temporary recording deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/demo/{audio_id}")
+async def delete_demo_audio(audio_id: int, db: Session = Depends(get_db)):
+    try:
+        logger.info(f"Attempting to delete demo audio with ID: {audio_id}")
+        audio = db.query(DemoAudio).filter(DemoAudio.id == audio_id).first()
+        
+        if not audio:
+            logger.error(f"Audio not found with ID: {audio_id}")
+            raise HTTPException(status_code=404, detail="Audio not found")
+            
+        db.delete(audio)
+        db.commit()
+        
+        logger.info(f"Successfully deleted demo audio with ID: {audio_id}")
+        return {"message": "Recording deleted successfully"}
+        
+    except Exception as e:
+        logger.error(f"Error deleting demo audio {audio_id}: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/sha256")
+async def calculate_sha256(file: UploadFile = File(...)):
+    """
+    Calculate SHA256 hash of an uploaded audio/video file.
+    """
+    try:
+        # Initialize SHA256 hash object
+        sha256_hash = hashlib.sha256()
+        
+        # Read and update hash in chunks to handle large files efficiently
+        while chunk := await file.read(8192):  # 8KB chunks
+            sha256_hash.update(chunk)
+            
+        # Get the final hash
+        file_hash = sha256_hash.hexdigest()
+        
+        return {
+            "filename": file.filename,
+            "content_type": file.content_type,
+            "sha256": file_hash
+        }
+        
+    except Exception as e:
+        logger.error(f"Error calculating SHA256: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to calculate SHA256: {str(e)}"
+        )
+    finally:
+        await file.seek(0)  # Reset file pointer to beginning
+
+@router.get("/hashes", response_model=list[AudioHashResponse])
+async def get_audio_hashes(db: Session = Depends(get_db)):
+    hashes = db.query(AudioHash).all()
+    return hashes
+
+@router.post("/check-hash")
+async def check_audio_hash(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Calculate SHA256 of uploaded file
+        sha256_hash = hashlib.sha256()
+        while chunk := await file.read(8192):
+            sha256_hash.update(chunk)
+        file_hash = sha256_hash.hexdigest()
+        
+        # Check for matches
+        matches = db.query(AudioHash).filter(
+            AudioHash.sha256_hash == file_hash
+        ).all()
+        
+        # If matches found, increment matched_count
+        for match in matches:
+            match.matched_count += 1
+        db.commit()
+        
+        return {
+            "hash": file_hash,
+            "matches": len(matches),
+            "matched_files": [
+                {
+                    "filename": m.filename,
+                    "content_type": m.content_type,
+                    "created_at": m.created_at,
+                    "matched_count": m.matched_count
+                } for m in matches
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Error checking hash: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to check hash: {str(e)}"
+        )
+
+@router.post("/store-hash")
+async def store_audio_hash(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Calculate SHA256
+        sha256_hash = hashlib.sha256()
+        file_contents = await file.read()
+        sha256_hash.update(file_contents)
+        file_hash = sha256_hash.hexdigest()
+        
+        # Store in database
+        audio_hash = AudioHash(
+            filename=file.filename,
+            content_type=file.content_type,
+            sha256_hash=file_hash
+        )
+        
+        db.add(audio_hash)
+        db.commit()
+        db.refresh(audio_hash)
+        
+        return {
+            "id": audio_hash.id,
+            "filename": audio_hash.filename,
+            "sha256": file_hash
+        }
+    except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 
