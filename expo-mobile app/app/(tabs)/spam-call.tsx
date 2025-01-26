@@ -139,8 +139,31 @@ export default function SpamCallScreen() {
         throw new Error('No recording URI available');
       }
 
+      // Upload recording as before
       const uploadResult = await audioService.uploadRecordedAudio(uri);
       setRecordedAudioId(uploadResult.id);
+
+      // Store hash of the recording
+      const formData = new FormData();
+      formData.append('file', {
+        uri: uri,
+        type: 'audio/m4a',
+        name: 'recording.m4a'
+      });
+
+      const hashResponse = await fetch(`${API_CONFIG.BASE_URL}/audio/store-hash`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'accept': 'application/json',
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (!hashResponse.ok) {
+        console.error('Failed to store hash:', await hashResponse.text());
+      }
+
       setRecordingComplete(true);
     } catch (error) {
       console.error('Error stopping recording:', error);

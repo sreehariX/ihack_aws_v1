@@ -83,42 +83,57 @@ export default function SHA256Screen() {
           style={styles.headerImage}
         />
       }>
-      <ThemedView style={styles.container}>
+      <ThemedView style={styles.titleContainer}>
         <ThemedText type="title">Leak Verification</ThemedText>
-        
+        <ThemedText style={styles.subtitle}>
+          Check if your content has been leaked
+        </ThemedText>
+      </ThemedView>
+
+      <ThemedView style={styles.section}>
+        <ThemedText type="subtitle">Verify Content</ThemedText>
         <TouchableOpacity 
-          style={styles.uploadButton}
+          style={styles.verificationButton}
           onPress={handleUpload}
           disabled={isLoading}
         >
-          <MaterialIcons name="upload-file" size={24} color="#9C27B0" />
-          <ThemedText style={styles.uploadButtonText}>
-            Upload File to Check
-          </ThemedText>
+          <View style={styles.buttonIconContainer}>
+            <MaterialIcons name="upload-file" size={24} color="#9C27B0" />
+          </View>
+          <ThemedText style={styles.buttonText}>Upload File to Check</ThemedText>
+          <ThemedText style={styles.buttonSubtext}>Audio & Video Verification</ThemedText>
         </TouchableOpacity>
+      </ThemedView>
 
-        {hashes.length > 0 && (
-          <ThemedView style={styles.hashesContainer}>
-            <ThemedText type="subtitle">Known Leaks</ThemedText>
-            {hashes.map((hash) => (
-              <View key={hash.id} style={styles.hashCard}>
-                <View style={styles.hashHeader}>
-                  <ThemedText style={styles.fileName}>{hash.filename}</ThemedText>
-                  <View style={styles.matchCount}>
-                    <MaterialIcons name="warning" size={16} color="#FF6B6B" />
-                    <ThemedText style={styles.matchCountText}>
-                      {hash.matched_count}x matched
-                    </ThemedText>
-                  </View>
-                </View>
-                <ThemedText style={styles.hash}>{hash.sha256_hash}</ThemedText>
-                <ThemedText style={styles.timestamp}>
-                  {new Date(hash.created_at).toLocaleString()}
+      {hashes.length > 0 && (
+        <ThemedView style={styles.section}>
+          <ThemedText type="subtitle">Recent Leaks</ThemedText>
+          {hashes.map((hash) => (
+            <View key={hash.id} style={styles.leakCard}>
+              <View style={styles.leakHeader}>
+                <MaterialIcons name="warning" size={20} color="#FF6B6B" />
+                <ThemedText style={styles.fileName}>{hash.filename}</ThemedText>
+                <ThemedText style={styles.matchCount}>
+                  {hash.matched_count}x matched
                 </ThemedText>
               </View>
-            ))}
-          </ThemedView>
-        )}
+              <ThemedText style={styles.hash}>{hash.sha256_hash}</ThemedText>
+              <ThemedText style={styles.timestamp}>
+                {new Date(hash.created_at).toLocaleString()}
+              </ThemedText>
+            </View>
+          ))}
+        </ThemedView>
+      )}
+
+      <ThemedView style={styles.infoContainer}>
+        <ThemedText type="defaultSemiBold" style={styles.infoTitle}>
+          <MaterialIcons name="info" size={20} color="#9C27B0" /> How It Works
+        </ThemedText>
+        <ThemedText style={styles.infoText}>• Upload your audio/video file</ThemedText>
+        <ThemedText style={styles.infoText}>• We'll check against known leaks</ThemedText>
+        <ThemedText style={styles.infoText}>• Get instant verification results</ThemedText>
+        <ThemedText style={styles.infoText}>• Stay informed about your content</ThemedText>
       </ThemedView>
     </ParallaxScrollView>
   );
@@ -130,28 +145,42 @@ const styles = StyleSheet.create({
     left: -35,
     position: 'absolute',
   },
-  container: {
-    gap: 24,
+  titleContainer: {
+    marginBottom: 24,
   },
-  uploadButton: {
+  subtitle: {
+    fontSize: 16,
+    opacity: 0.7,
+    marginTop: 4,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  verificationButton: {
     padding: 16,
     borderRadius: 16,
     backgroundColor: '#9C27B008',
     borderWidth: 1,
     borderColor: '#9C27B015',
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
+    marginTop: 12,
   },
-  uploadButtonText: {
+  buttonIconContainer: {
+    backgroundColor: '#9C27B015',
+    padding: 8,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  buttonText: {
     fontSize: 16,
-    textAlign: 'center',
+    fontWeight: '600',
+    marginBottom: 4,
   },
-  hashesContainer: {
-    gap: 12,
+  buttonSubtext: {
+    fontSize: 14,
+    opacity: 0.6,
   },
-  hashCard: {
+  leakCard: {
     padding: 16,
     borderRadius: 12,
     backgroundColor: '#9C27B008',
@@ -159,22 +188,18 @@ const styles = StyleSheet.create({
     borderColor: '#9C27B015',
     marginTop: 8,
   },
-  hashHeader: {
+  leakHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
     marginBottom: 8,
   },
   fileName: {
+    flex: 1,
     fontSize: 16,
     fontWeight: '500',
   },
   matchCount: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  matchCountText: {
     fontSize: 12,
     color: '#FF6B6B',
   },
@@ -187,5 +212,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     opacity: 0.6,
     marginTop: 8,
+  },
+  infoContainer: {
+    padding: 20,
+    borderRadius: 16,
+    backgroundColor: '#9C27B008',
+    borderWidth: 1,
+    borderColor: '#9C27B015',
+  },
+  infoTitle: {
+    fontSize: 18,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infoText: {
+    fontSize: 15,
+    opacity: 0.8,
+    paddingLeft: 24,
+    marginBottom: 8,
   },
 });
