@@ -1,10 +1,11 @@
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from .routers import audio
+from .routers import audio, spam_reports
 from .database import engine
 from . import models
 from .services.transcribe_service import TranscriptionHandler
+from app.routers import video
 
 import uuid
 
@@ -25,6 +26,8 @@ app.add_middleware(
 )
 
 app.include_router(audio.router, prefix="/audio", tags=["audio"])
+app.include_router(video.router)
+app.include_router(spam_reports.router)
 
 
 

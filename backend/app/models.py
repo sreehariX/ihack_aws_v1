@@ -44,6 +44,15 @@ class Transcription(Base):
     
     audio_file = relationship("AudioFile", back_populates="transcriptions")
 
+class SpamReport(Base):
+    __tablename__ = "spam_reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    phone_number = Column(String, index=True)
+    description = Column(String)
+    reports_count = Column(Integer, default=1)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
 # Pydantic Models for API
 class AudioCreate(BaseModel):
     filename: str
@@ -83,3 +92,7 @@ class DemoResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class SpamReportCreate(BaseModel):
+    phone_number: str
+    description: str
