@@ -20,7 +20,7 @@ This is the main source code repository for ihack_aws hackathon, built with aws 
 
 ## Youtube demo video 
 
-[![ihack_aws Demo](https://img.youtube.com/vi/QgL8jfBxz9s/maxresdefault.jpg)](https://youtu.be/nGDS7qykMOw?si=MvoYWrMPMh0bMV12)
+<iframe width="560" height="315" src="https://www.youtube.com/embed/nGDS7qykMOw?si=MvoYWrMPMh0bMV12" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ## Quick Start
 
