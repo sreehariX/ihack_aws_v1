@@ -12,8 +12,8 @@ This is the main source code repository for ihack_aws hackathon, built with aws 
 ## What are the futures implemented?
 
 - **Scam call detection:** We use aws transcribe to get real time speech to text transcription and every 10 seconds take the transcription and ask an llm to get structured output whether FRAUD OR LEGITAMATE based on confidence score
-- **Vkyc deepfake detection:** Tried using amazon faceliveness also implement backend but currently it does not support react native it does but with native component not able to implement due to time constraints
-- **Spam report :** You can report a user with phone number and description we that data to improve the spam detection model in future models
+- **Vkyc deepfake detection:** Tried using amazon faceliveness also implemented backend but currently it does not support react native it does but with native component not able to implement due to time constraints
+- **Spam report :** You can report a user with phone number and description we use that data to improve the spam detection model in future models
 - **SHA256 :**  I thought how can we guarantee users that their data is safe so the approach is everytime we record a call or video and upload to the backend we create a sha256 hash so in the future if there is any data leak they can verify if the sha256 hash matches that means it is leaked from our end otherswise we guarantee user data protection 
 
 
@@ -114,14 +114,14 @@ This is the main source code repository for ihack_aws hackathon, built with aws 
 
 - Everytime we record audio and upload to backend we will send that to /audio/storehash endpoint just before deleting the audio file and get sha256 hash
 - This hash is unique for every input so the incase that user wants to verify in future whether his data is safe or not 
-- He will upload that to the hash verification screen if the hash does not match then data is not leak if so then it is issue with our application . By implementing this we give user security .
+- He will upload that to the hash verification screen if the hash does not match then data is not leaked if so then it is issue with our application . By implementing this we give user security .
 
 ### How reporting works 
 ![image](https://github.com/user-attachments/assets/625b7bfa-bd49-450e-9f78-c2de6f25d6b3)
 
 - Users report spam by submitting a phone number and description, which is sent to the backend API.
 - The backend checks if the phone number exists; if so, it increments the report count, otherwise, it creates a new report.
-- Users can view recent reports in the app, helping them stay informed about potential spam numbers and also we use this data to improve future modesl accuracy
+- Users can view recent reports in the app, helping them stay informed about potential spam numbers and also we use this data to improve future models accuracy
 
 
 ### deepfake detection
