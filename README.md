@@ -141,6 +141,12 @@ This is the main source code repository for ihack_aws hackathon, built with aws 
 - SQLAlchemy for ORM
 - PostgreSQL for database
 - Python for backend logic
+- 
+
+## APP UI
+
+![2](https://github.com/user-attachments/assets/54e8c644-ded8-43cd-82d0-42b5826e219d)
+
 
 ## License
 
