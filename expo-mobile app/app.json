@@ -22,8 +22,11 @@
       },
       "package": "com.anonymous.sha256v4",
       "permissions": [
-        "RECORD_AUDIO",
-        "MODIFY_AUDIO_SETTINGS"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.CAMERA"
       ]
     },
     "web": {
@@ -66,6 +69,14 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "488de222-3eb3-48e2-bc47-bab78c1f1dc2"
+      }
     }
   }
 }

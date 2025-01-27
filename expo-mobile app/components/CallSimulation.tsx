@@ -336,7 +336,7 @@ export function CallSimulation({
       }
     };
 
-    fraudAnalysisTimerRef.current = setInterval(analyzeFraud, 15000);
+    fraudAnalysisTimerRef.current = setInterval(analyzeFraud, 10000);
     console.log('Fraud analysis interval set up');
 
     return () => {
